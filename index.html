@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アグリ・マスター | 農業知識クイズ</title>
+    <!-- Tailwind CSSの読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Noto Sans JP & Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome アイコン -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(22, 163, 74, 0.15);
+        }
+        .option-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .option-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+        }
+        .option-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #86efac;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4ade80;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col justify-between">
+
+    <!-- カスタム通知トースト (alertの代替) -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- ヘッダー -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-emerald-100 sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2.5 cursor-pointer" onclick="app.showScreen('home')">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-md shadow-emerald-200">
+                    <i class="fa-solid fa-seedling text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg sm:text-xl text-emerald-950 tracking-tight leading-none">アグリ・マスター</h1>
+                    <p class="text-[11px] text-emerald-600 font-medium mt-0.5">楽しく学ぶ農業知識クイズ</p>
+                </div>
+            </div>
+
+            <!-- ユーザー情報表示エリア -->
+            <div id="user-nav" class="flex items-center gap-3">
+                <div id="auth-loading" class="text-sm text-slate-400">
+                    <i class="fa-solid fa-circle-notch fa-spin mr-1"></i>読込中...
+                </div>
+                
+                <!-- 未ログイン時 -->
+                <div id="logged-out-view" class="hidden">
+                    <button onclick="app.loginWithGoogle()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium py-1.5 px-3.5 rounded-xl text-sm flex items-center gap-2 shadow-sm transition">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-4 h-4">
+                        <span>Googleでログイン</span>
+                    </button>
+                </div>
+
+                <!-- ログイン済み時 -->
+                <div id="logged-in-view" class="hidden flex items-center gap-2 sm:gap-3">
+                    <div class="flex items-center gap-2 bg-emerald-50 py-1 px-2.5 rounded-full border border-emerald-200">
+                        <img id="user-avatar" src="" alt="User" class="w-6 h-6 rounded-full object-cover bg-emerald-200" onerror="this.src='https://placehold.co/40x40/10b981/ffffff?text=U'">
+                        <span id="user-name" class="text-xs sm:text-sm font-semibold text-emerald-900 max-w-[100px] sm:max-w-[150px] truncate">ゲスト</span>
+                    </div>
+                    <button onclick="app.logout()" title="ログアウト" class="text-slate-400 hover:text-rose-500 p-2 rounded-lg transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-6 sm:py-10 flex flex-col justify-center">
+
+        <!-- 1. ホーム画面 -->
+        <section id="screen-home" class="glass-card rounded-3xl p-6 sm:p-10 shadow-xl shadow-emerald-900/5 transition-all">
+            <div class="text-center max-w-xl mx-auto">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-4">
+                    <i class="fa-solid fa-tractor"></i> 全10問からランダムに5問出題！
+                </div>
+                <h2 class="text-2xl sm:text-4xl font-bold text-slate-900 mb-4 leading-tight">
+                    あなたの<span class="text-emerald-600">農業知識</span>を試そう！
+                </h2>
+                <p class="text-slate-600 text-sm sm:text-base mb-8 leading-relaxed">
+                    野菜の育て方から土壌の知識、日本の農業事情まで幅広いジャンルのクイズに挑戦して、全国ランキング上位を目指しましょう！
+                </p>
+
+                <!-- ログイン促進・開始ボタンエリア -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center items-center mb-8">
+                    <button id="btn-start-quiz" onclick="app.startQuiz()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-base transition transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-play"></i>
+                        <span>クイズに挑戦する</span>
+                    </button>
+                    
+                    <button id="btn-home-login" onclick="app.loginWithGoogle()" class="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-200 font-bold py-3 px-6 rounded-2xl flex items-center justify-center gap-2 text-sm transition">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-4 h-4">
+                        <span>Googleログインして記録を残す</span>
+                    </button>
+                </div>
+
+                <!-- プレビュー環境用ゲストログイン案内（必要な場合のみ表示） -->
+                <div id="guest-login-hint" class="hidden mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                    <p class="mb-2"><i class="fa-solid fa-circle-info mr-1"></i>現在の環境ではGoogleポップアップ認証が制限されている場合があります。</p>
+                    <button onclick="app.loginAsGuest()" class="underline font-bold text-amber-900 hover:text-amber-700">
+                        テスト用ゲストとしてログインする
+                    </button>
+                </div>
+            </div>
+
+            <!-- タブ切り替え（全国ランキング / マイ記録の編集・削除） -->
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <div class="flex border-b border-slate-200 mb-4">
+                    <button id="tab-ranking" onclick="app.switchHomeTab('ranking')" class="flex-1 py-2.5 text-sm sm:text-base font-bold text-emerald-600 border-b-2 border-emerald-600 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-500"></i>
+                        <span>全国ランキング</span>
+                    </button>
+                    <button id="tab-history" onclick="app.switchHomeTab('history')" class="flex-1 py-2.5 text-sm sm:text-base font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open text-emerald-600"></i>
+                        <span>マイ記録 (編集・削除)</span>
+                    </button>
+                </div>
+
+                <!-- パネル1: ランキングボード -->
+                <div id="panel-ranking">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-medium text-slate-500">全ユーザーのハイスコア一覧</span>
+                        <span class="text-xs text-emerald-600 font-medium"><i class="fa-solid fa-bolt mr-1"></i>リアルタイム更新</span>
+                    </div>
+                    
+                    <div id="ranking-list" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                        <!-- ランキングアイテムがJSで挿入されます -->
+                        <div class="text-center py-8 text-slate-400 text-sm">
+                            <i class="fa-solid fa-spinner fa-spin mr-2"></i>ランキングデータを取得中...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- パネル2: マイ記録（ユーザーごとのデータ表示・編集・削除） -->
+                <div id="panel-history" class="hidden">
+                    <div id="history-login-prompt" class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p class="text-sm text-slate-600 mb-3">ログインすると、あなたの過去のスコアや学習メモの保存・編集・削除ができます。</p>
+                        <button onclick="app.loginWithGoogle()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-2 px-4 rounded-xl text-xs inline-flex items-center gap-2 shadow-sm">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-4 h-4">
+                            <span>Googleでログイン</span>
+                        </button>
+                    </div>
+
+                    <div id="history-content" class="hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-medium text-slate-500">あなたのプレイ履歴（メモの編集・記録の削除が可能）</span>
+                            <span id="my-record-count" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">0件</span>
+                        </div>
+                        <div id="my-history-list" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                            <!-- 自分の記録がJSで挿入されます -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. クイズプレイ画面 -->
+        <section id="screen-quiz" class="hidden glass-card rounded-3xl p-6 sm:p-8 shadow-xl shadow-emerald-900/5">
+            <!-- プログレスバー & スコア -->
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-sm font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
+                    第 <span id="q-current">1</span> / <span id="q-total">5</span> 問
+                </span>
+                <span id="q-category" class="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                    カテゴリー
+                </span>
+            </div>
+            
+            <div class="w-full bg-slate-100 h-2.5 rounded-full mb-6 overflow-hidden">
+                <div id="progress-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 20%"></div>
+            </div>
+
+            <!-- 問題文 -->
+            <div class="mb-6">
+                <h3 id="q-text" class="text-lg sm:text-2xl font-bold text-slate-900 leading-snug">
+                    問題文がここに表示されます
+                </h3>
+            </div>
+
+            <!-- 選択肢 -->
+            <div id="options-container" class="grid grid-cols-1 gap-3 mb-6">
+                <!-- 選択肢ボタンがJSで生成されます -->
+            </div>
+
+            <!-- 解説エリア（回答後に表示） -->
+            <div id="explanation-box" class="hidden rounded-2xl p-5 mb-6 border transition-all">
+                <div class="flex items-center gap-2 font-bold text-lg mb-2" id="result-badge">
+                    <!-- 正解・不正解表示 -->
+                </div>
+                <p id="explanation-text" class="text-sm sm:text-base text-slate-700 leading-relaxed">
+                    解説文がここに表示されます。
+                </p>
+            </div>
+
+            <!-- 次へボタン -->
+            <div class="flex justify-end">
+                <button id="btn-next-q" onclick="app.nextQuestion()" class="hidden bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition">
+                    <span>次の問題へ</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- 3. 結果発表画面 -->
+        <section id="screen-result" class="hidden glass-card rounded-3xl p-6 sm:p-10 shadow-xl shadow-emerald-900/5 text-center">
+            <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner">
+                <i class="fa-solid fa-award"></i>
+            </div>
+            
+            <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">クイズ終了！</h2>
+            <p id="result-rank-title" class="text-emerald-600 font-bold text-lg mb-6">見習いファーマー</p>
+
+            <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 max-w-sm mx-auto mb-8">
+                <div class="text-sm text-slate-500 mb-1">あなたのスコア</div>
+                <div class="text-4xl sm:text-5xl font-extrabold text-slate-900">
+                    <span id="final-score" class="text-emerald-600">0</span>
+                    <span class="text-xl text-slate-400 font-normal"> / 100 点</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-2">
+                    正解数: <span id="correct-count" class="font-bold text-slate-700">0</span> / <span id="total-count">5</span> 問
+                </div>
+            </div>
+
+            <!-- スコア保存ステータス -->
+            <div id="score-save-status" class="mb-8 text-sm">
+                <!-- 保存状態がJSで表示されます -->
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <button onclick="app.startQuiz()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>もう一度挑戦する</span>
+                </button>
+                <button onclick="app.showScreen('home')" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-house"></i>
+                    <span>トップ・ランキングへ</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 記録編集用カスタムモーダル -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-emerald-600"></i>
+                    <span>記録の編集</span>
+                </h3>
+                <button onclick="app.closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <input type="hidden" id="edit-doc-id">
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">表示名（ニックネーム）</label>
+                    <input type="text" id="edit-user-name" maxlength="20" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm" placeholder="表示名を入力">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">学習メモ・ひとことコメント</label>
+                    <textarea id="edit-memo" rows="3" maxlength="100" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm" placeholder="例：トマトのわき芽かきについて復習した！"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="app.closeEditModal()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition">
+                    キャンセル
+                </button>
+                <button onclick="app.saveEditedRecord()" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition">
+                    変更を保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 削除確認用カスタムモーダル (confirm()の代替) -->
+    <div id="delete-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <h3 class="font-bold text-lg text-slate-900 mb-2">この記録を削除しますか？</h3>
+            <p class="text-xs text-slate-500 mb-6">削除するとランキングからも消去され、元に戻すことはできません。</p>
+            
+            <input type="hidden" id="delete-doc-id">
+            
+            <div class="flex gap-2 justify-center">
+                <button onclick="app.closeDeleteModal()" class="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+                    やめる
+                </button>
+                <button onclick="app.confirmDeleteRecord()" class="flex-1 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md transition">
+                    削除する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- フッター -->
+    <footer class="text-center py-6 text-xs text-slate-500">
+        <p>&copy; 2026 アグリ・マスター Quiz App. Powered by Firebase & GitHub Pages.</p>
+    </footer>
+
+    <!-- Firebase SDK & アプリケーションロジック -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            doc,
+            updateDoc,
+            deleteDoc,
+            onSnapshot, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 1. Firebaseの設定（ユーザー提供の設定を優先しつつ、実行環境変数があれば柔軟に対応）
+        const userFirebaseConfig = {
+            apiKey: "AIzaSyBEV4u3BlbvUqBa4gKMPg9tqDqxYXV7RVw",
+            authDomain: "kadai-d4a4b.firebaseapp.com",
+            projectId: "kadai-d4a4b",
+            storageBucket: "kadai-d4a4b.firebasestorage.app",
+            messagingSenderId: "577208903537",
+            appId: "1:577208903537:web:d2fe6d72498e02712e78d0",
+            measurementId: "G-CFFZQ2HTBS"
+        };
+
+        // キャンバス環境変数が定義されている場合はそちらを優先、なければユーザー設定を使用
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : userFirebaseConfig;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'agri-quiz-app';
+
+        // Firebase初期化
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+        const googleProvider = new GoogleAuthProvider();
+
+        // 2. 農業クイズデータベース（10問）
+        const QUIZ_BANK = [
+            {
+                category: "野菜の栽培",
+                question: "トマトの栽培で行う「わき芽かき」の主な目的は何でしょう？",
+                options: [
+                    "葉の数を増やして光合成を最大にするため",
+                    "栄養が分散するのを防ぎ、実を大きく美味しくするため",
+                    "害虫の隠れ場所を意図的に作るため",
+                    "根の成長を止めて背丈を低く保つため"
+                ],
+                answer: 1,
+                explanation: "葉の付け根から出る「わき芽」を放置すると、栄養が枝葉に分散してしまい、実つきが悪くなったり風通しが悪くなって病気の原因になります。"
+            },
+            {
+                category: "土壌・肥料",
+                question: "植物の生育に欠かせない「肥料の三要素」の組み合わせとして正しいものはどれ？",
+                options: [
+                    "窒素（N）・リン酸（P）・カリウム（K）",
+                    "カルシウム（Ca）・マグネシウム（Mg）・鉄（Fe）",
+                    "酸素（O）・水素（H）・炭素（C）",
+                    "ナトリウム（Na）・塩素（Cl）・硫黄（S）"
+                ],
+                answer: 0,
+                explanation: "窒素は「葉肥（はごえ）」、リン酸は「花肥・実肥（はなごえ・みごえ）」、カリウムは「根肥（ねごえ）」と呼ばれ、植物の成長に最も多く必要とされる三大栄養素です。"
+            },
+            {
+                category: "栽培管理",
+                question: "同じ場所で同じ科の野菜を毎年続けて栽培すると生育が悪くなる現象を何という？",
+                options: [
+                    "光合成障害",
+                    "連作障害（れんさくしょうがい）",
+                    "徒長現象（とちょうげんしょう）",
+                    "生理落果（せいりらっか）"
+                ],
+                answer: 1,
+                explanation: "同じ科の野菜を作り続けると、土壌中の特定の栄養素が欠乏したり、その野菜を好む病原菌や線虫が増殖したりして「連作障害」が起きます。輪作（ローテーション）が有効です。"
+            },
+            {
+                category: "植物の性質",
+                question: "ジャガイモの芽や緑色になった皮に含まれる、食中毒の原因となる天然毒素は何？",
+                options: [
+                    "カプサイシン",
+                    "リコピン",
+                    "ソラニン（およびチャコニン）",
+                    "アミグダリン"
+                ],
+                answer: 2,
+                explanation: "ジャガイモが光に当たると緑化し、ソラニンやチャコニンという毒素が増えます。栽培中は土寄せをして芋が地表に出ないように管理することが大切です。"
+            },
+            {
+                category: "マメ科の不思議",
+                question: "エダマメやダイズなどのマメ科植物の根に共生し、空気中の窒素を栄養に変える細菌は？",
+                options: [
+                    "乳酸菌",
+                    "根粒菌（こんりゅうきん）",
+                    "納豆菌",
+                    "麹菌"
+                ],
+                answer: 1,
+                explanation: "マメ科植物の根にあるコブ（根粒）には「根粒菌」が住んでおり、空気中の窒素を固定して植物に供給する代わりに、植物から光合成で作られた栄養をもらう共生関係にあります。"
+            },
+            {
+                category: "果樹栽培",
+                question: "リンゴやモモなどの果樹栽培で、実が大きくなる前にあえて一部の実を摘み取る作業を何という？",
+                options: [
+                    "摘果（てきか）",
+                    "剪定（せんてい）",
+                    "接ぎ木（つぎき）",
+                    "受粉（じゅふん）"
+                ],
+                answer: 0,
+                explanation: "実がなりすぎると1つあたりの栄養が減り、小玉になったり味が落ちたりします。「摘果」を行うことで残した実に栄養を集中させ、高品質な果実を作ります。"
+            },
+            {
+                category: "日本の農業",
+                question: "日本の稲作で最も多く栽培されているお米の品種（作付面積第1位）はどれ？",
+                options: [
+                    "あきたこまち",
+                    "ひとめぼれ",
+                    "コシヒカリ",
+                    "ゆめぴりか"
+                ],
+                answer: 2,
+                explanation: "コシヒカリは1956年に誕生して以来、味と粘りの良さから全国で広く栽培され、日本の作付面積の約3分の1を占めるトップ品種です。"
+            },
+            {
+                category: "土壌改良",
+                question: "日本の土壌は雨が多く酸性になりやすい傾向があります。酸性土壌を中和するためにまく資材は？",
+                options: [
+                    "硫安（硫酸アンモニウム）",
+                    "苦土石灰（くどせっかい）などの石灰資材",
+                    "ピートモス",
+                    "鹿沼土（かぬまつち）"
+                ],
+                answer: 1,
+                explanation: "多くの野菜は弱酸性（pH6.0〜6.5）を好みます。雨でアルカリ成分が流れ出た酸性土壌には、苦土石灰や消石灰などを混ぜて酸度を調整します。"
+            },
+            {
+                category: "農業技術",
+                question: "畑の畝（うね）をビニールフィルムやワラなどで覆う栽培方法を何という？",
+                options: [
+                    "マルチング（マルチ栽培）",
+                    "水耕栽培",
+                    "天地返し",
+                    "客土（きゃくど）"
+                ],
+                answer: 0,
+                explanation: "マルチングには、地温の調節、雑草の抑制、土壌の乾燥防止、泥はねによる病気の予防など多くのメリットがあります。"
+            },
+            {
+                category: "農業用語",
+                question: "農業において、農産物の生産（1次）だけでなく、加工（2次）・流通販売（3次）まで一体的に取り組む経営形態を何という？",
+                options: [
+                    "スマート農業",
+                    "6次産業化",
+                    "有機JAS認証",
+                    "アグリツーリズム"
+                ],
+                answer: 1,
+                explanation: "1次産業 × 2次産業 × 3次産業 ＝ 6 となることから「6次産業化」と呼ばれます。農家が自らジャムを作ったり直売所やカフェを運営したりする取り組みが代表例です。"
+            }
+        ];
+
+        // 3. アプリケーション状態管理
+        class AgriQuizApp {
+            constructor() {
+                this.currentUser = null;
+                this.allScores = []; // 全ユーザーのスコアキャッシュ
+                this.questions = [];
+                this.currentIndex = 0;
+                this.score = 0;
+                this.correctCount = 0;
+                this.isAnswered = false;
+                this.unsubscribeRanking = null;
+
+                this.initAuth();
+            }
+
+            // トースト通知表示 (alertの代わり)
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                const colors = {
+                    info: 'bg-slate-800 text-white border-slate-700',
+                    success: 'bg-emerald-600 text-white border-emerald-500',
+                    error: 'bg-rose-600 text-white border-rose-500',
+                    warning: 'bg-amber-500 text-white border-amber-400'
+                };
+                
+                const icons = {
+                    info: 'fa-circle-info',
+                    success: 'fa-circle-check',
+                    error: 'fa-circle-exclamation',
+                    warning: 'fa-triangle-exclamation'
+                };
+
+                toast.className = `${colors[type]} border px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium transform transition-all duration-300 translate-y-[-10px] opacity-0 pointer-events-auto`;
+                toast.innerHTML = `
+                    <i class="fa-solid ${icons[type]}"></i>
+                    <span class="flex-1">${message}</span>
+                `;
+                
+                container.appendChild(toast);
+                
+                // アニメーションイン
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+                });
+
+                // 3.5秒後に消去
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3500);
+            }
+
+            // 認証の初期化
+            async initAuth() {
+                // 認証状態の監視
+                onAuthStateChanged(auth, (user) => {
+                    this.currentUser = user;
+                    this.updateAuthUI(user);
+                    if (user) {
+                        this.subscribeToRankings();
+                    } else {
+                        // 未ログインでもランキング閲覧用に匿名認証を試みるか、公開データを取得
+                        this.subscribeToRankings();
+                    }
+                });
+
+                // キャンバス環境用のカスタムトークンがある場合は自動ログイン
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (e) {
+                        console.warn("Custom token sign-in skipped:", e);
+                    }
+                }
+            }
+
+            // Googleログイン処理
+            async loginWithGoogle() {
+                try {
+                    const result = await signInWithPopup(auth, googleProvider);
+                    this.showToast(`ようこそ、${result.user.displayName || 'ファーマー'}さん！`, 'success');
+                } catch (error) {
+                    console.error("Google Login Error:", error);
+                    // iframe環境などでポップアップがブロックされた場合の親切な案内
+                    if (error.code === 'auth/popup-blocked' || error.code === 'auth/unauthorized-domain' || error.code === 'auth/operation-not-supported-in-this-environment') {
+                        this.showToast('この環境ではGoogleログインポップアップが制限されています。下のゲストログインをお試しください。', 'warning');
+                        document.getElementById('guest-login-hint').classList.remove('hidden');
+                    } else if (error.code !== 'auth/popup-closed-by-user') {
+                        this.showToast(`ログインに失敗しました: ${error.message}`, 'error');
+                    }
+                }
+            }
+
+            // ゲスト（匿名）ログイン処理（テスト・プレビュー環境用）
+            async loginAsGuest() {
+                try {
+                    await signInAnonymously(auth);
+                    this.showToast('テスト用ゲストとしてログインしました！', 'success');
+                    document.getElementById('guest-login-hint').classList.add('hidden');
+                } catch (error) {
+                    console.error("Guest Login Error:", error);
+                    this.showToast('ゲストログインに失敗しました。', 'error');
+                }
+            }
+
+            // ログアウト処理
+            async logout() {
+                try {
+                    await signOut(auth);
+                    this.showToast('ログアウトしました', 'info');
+                    this.showScreen('home');
+                } catch (error) {
+                    this.showToast('ログアウト中にエラーが発生しました', 'error');
+                }
+            }
+
+            // ヘッダー・ホームのUI更新
+            updateAuthUI(user) {
+                document.getElementById('auth-loading').classList.add('hidden');
+                const loggedOutView = document.getElementById('logged-out-view');
+                const loggedInView = document.getElementById('logged-in-view');
+                const homeLoginBtn = document.getElementById('btn-home-login');
+                const historyPrompt = document.getElementById('history-login-prompt');
+                const historyContent = document.getElementById('history-content');
+
+                if (user) {
+                    loggedOutView.classList.add('hidden');
+                    loggedInView.classList.remove('hidden');
+                    homeLoginBtn.classList.add('hidden');
+                    historyPrompt.classList.add('hidden');
+                    historyContent.classList.remove('hidden');
+
+                    const displayName = user.displayName || (user.isAnonymous ? 'ゲストファーマー' : '農業マスター');
+                    document.getElementById('user-name').textContent = displayName;
+                    
+                    const avatarEl = document.getElementById('user-avatar');
+                    if (user.photoURL) {
+                        avatarEl.src = user.photoURL;
+                    } else {
+                        avatarEl.src = `https://placehold.co/40x40/10b981/ffffff?text=${encodeURIComponent(displayName.charAt(0))}`;
+                    }
+                } else {
+                    loggedOutView.classList.remove('hidden');
+                    loggedInView.classList.add('hidden');
+                    homeLoginBtn.classList.remove('hidden');
+                    historyPrompt.classList.remove('hidden');
+                    historyContent.classList.add('hidden');
+                }
+
+                // すでに取得済みのデータがあれば再描画（自分の記録フィルタリング更新のため）
+                if (this.allScores.length > 0) {
+                    this.renderMyHistory();
+                }
+            }
+
+            // ホーム画面のタブ切り替え
+            switchHomeTab(tabName) {
+                const tabRanking = document.getElementById('tab-ranking');
+                const tabHistory = document.getElementById('tab-history');
+                const panelRanking = document.getElementById('panel-ranking');
+                const panelHistory = document.getElementById('panel-history');
+
+                if (tabName === 'ranking') {
+                    tabRanking.classList.add('text-emerald-600', 'border-emerald-600');
+                    tabRanking.classList.remove('text-slate-500', 'border-transparent');
+                    tabHistory.classList.remove('text-emerald-600', 'border-emerald-600');
+                    tabHistory.classList.add('text-slate-500', 'border-transparent');
+                    panelRanking.classList.remove('hidden');
+                    panelHistory.classList.add('hidden');
+                } else {
+                    tabHistory.classList.add('text-emerald-600', 'border-emerald-600');
+                    tabHistory.classList.remove('text-slate-500', 'border-transparent');
+                    tabRanking.classList.remove('text-emerald-600', 'border-emerald-600');
+                    tabRanking.classList.add('text-slate-500', 'border-transparent');
+                    panelHistory.classList.remove('hidden');
+                    panelRanking.classList.add('hidden');
+                    this.renderMyHistory();
+                }
+            }
+
+            // Firestoreから全データをリアルタイム取得 (Rule 1 & Rule 2 準拠)
+            subscribeToRankings() {
+                if (this.unsubscribeRanking) {
+                    this.unsubscribeRanking();
+                }
+
+                // Rule 1: 厳密なパス構造を使用
+                const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'quiz_scores');
+                
+                // Rule 2: orderByやlimitを使わず全件取得してJS側でソート
+                this.unsubscribeRanking = onSnapshot(scoresRef, (snapshot) => {
+                    const scores = [];
+                    snapshot.forEach((doc) => {
+                        scores.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    this.allScores = scores;
+
+                    // ランキング用にスコア降順・日時昇順にソート
+                    const rankedScores = [...scores].sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score;
+                        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                        return timeA - timeB;
+                    });
+
+                    this.renderRankings(rankedScores.slice(0, 15)); // 上位15件を表示
+                    this.renderMyHistory(); // 自分の記録も最新状態に更新
+                }, (error) => {
+                    console.error("Ranking fetch error:", error);
+                    const listEl = document.getElementById('ranking-list');
+                    listEl.innerHTML = `
+                        <div class="text-center py-6 text-slate-400 text-xs">
+                            データの読み込みに失敗しました（ログインまたはFirestoreルールを確認してください）
+                        </div>
+                    `;
+                });
+            }
+
+            // ランキングの描画（他ユーザーのデータ含む）
+            renderRankings(scores) {
+                const listEl = document.getElementById('ranking-list');
+                
+                if (scores.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-500 text-sm">
+                            まだ記録がありません。最初の挑戦者になろう！
+                        </div>
+                    `;
+                    return;
+                }
+
+                listEl.innerHTML = scores.map((item, index) => {
+                    const rank = index + 1;
+                    let rankBadge = `<span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center shrink-0">${rank}</span>`;
+                    
+                    if (rank === 1) rankBadge = `<span class="w-6 h-6 rounded-full bg-amber-400 text-white font-bold text-xs flex items-center justify-center shadow-sm shrink-0"><i class="fa-solid fa-crown text-[10px]"></i></span>`;
+                    if (rank === 2) rankBadge = `<span class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center shrink-0">2</span>`;
+                    if (rank === 3) rankBadge = `<span class="w-6 h-6 rounded-full bg-amber-600 text-white font-bold text-xs flex items-center justify-center shrink-0">3</span>`;
+
+                    const isMe = this.currentUser && item.uid === this.currentUser.uid;
+                    const highlightClass = isMe ? 'bg-emerald-50/90 border-emerald-300' : 'bg-white border-slate-100';
+                    const memoHtml = item.memo ? `<div class="text-xs text-slate-600 mt-1 bg-slate-50 px-2 py-1 rounded border border-slate-100 truncate"><i class="fa-regular fa-comment-dots text-emerald-500 mr-1"></i>${this.escapeHTML(item.memo)}</div>` : '';
+
+                    return `
+                        <div class="p-3 rounded-xl border ${highlightClass} transition">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    ${rankBadge}
+                                    <img src="${item.photoURL || 'https://placehold.co/32x32/10b981/ffffff?text=F'}" alt="" class="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" onerror="this.src='https://placehold.co/32x32/10b981/ffffff?text=F'">
+                                    <div class="truncate">
+                                        <div class="text-sm font-bold text-slate-800 truncate flex items-center gap-1.5">
+                                            <span>${this.escapeHTML(item.userName || '名無しファーマー')}</span>
+                                            ${isMe ? '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded shrink-0">あなた</span>' : ''}
+                                        </div>
+                                        <div class="text-[11px] text-slate-400 truncate">${this.escapeHTML(item.title || '見習いファーマー')}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0 ml-2">
+                                    <span class="font-extrabold text-emerald-600 text-base">${item.score}</span>
+                                    <span class="text-xs text-slate-400">点</span>
+                                </div>
+                            </div>
+                            ${memoHtml}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // マイ記録（ログイン中ユーザーのデータ一覧・編集・削除ボタン付き）の描画
+            renderMyHistory() {
+                if (!this.currentUser) return;
+
+                const myRecords = this.allScores
+                    .filter(item => item.uid === this.currentUser.uid)
+                    .sort((a, b) => {
+                        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
+                        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
+                        return timeB - timeA; // 新しい順
+                    });
+
+                document.getElementById('my-record-count').textContent = `${myRecords.length}件`;
+                const listEl = document.getElementById('my-history-list');
+
+                if (myRecords.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-500 text-sm">
+                            まだ保存された記録がありません。<br>クイズに挑戦して記録を残しましょう！
+                        </div>
+                    `;
+                    return;
+                }
+
+                listEl.innerHTML = myRecords.map(item => {
+                    const dateStr = item.createdAt?.toDate 
+                        ? item.createdAt.toDate().toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : 'たった今';
+                    
+                    const memoText = item.memo 
+                        ? `<p class="text-xs text-slate-700 bg-emerald-50/70 p-2 rounded-lg border border-emerald-100 mt-2"><i class="fa-solid fa-note-sticky text-emerald-600 mr-1.5"></i>${this.escapeHTML(item.memo)}</p>`
+                        : `<p class="text-xs text-slate-400 italic mt-2">メモなし（編集ボタンから学習メモを追加できます）</p>`;
+
+                    return `
+                        <div class="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-extrabold text-lg text-emerald-600">${item.score}<span class="text-xs font-normal text-slate-500">点</span></span>
+                                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${this.escapeHTML(item.title || '')}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-0.5">
+                                        表示名: ${this.escapeHTML(item.userName || '')} ・ ${dateStr}
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button onclick="app.openEditModal('${item.id}')" title="編集" class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button onclick="app.openDeleteModal('${item.id}')" title="削除" class="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            ${memoText}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 編集モーダルを開く
+            openEditModal(docId) {
+                const record = this.allScores.find(item => item.id === docId);
+                if (!record) return;
+
+                document.getElementById('edit-doc-id').value = docId;
+                document.getElementById('edit-user-name').value = record.userName || '';
+                document.getElementById('edit-memo').value = record.memo || '';
+                document.getElementById('edit-modal').classList.remove('hidden');
+            }
+
+            // 編集モーダルを閉じる
+            closeEditModal() {
+                document.getElementById('edit-modal').classList.add('hidden');
+            }
+
+            // 編集内容をFirestoreに保存 (Update)
+            async saveEditedRecord() {
+                if (!this.currentUser) return;
+                const docId = document.getElementById('edit-doc-id').value;
+                const newName = document.getElementById('edit-user-name').value.trim();
+                const newMemo = document.getElementById('edit-memo').value.trim();
+
+                if (!newName) {
+                    this.showToast('表示名を入力してください', 'warning');
+                    return;
+                }
+
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'quiz_scores', docId);
+                    await updateDoc(docRef, {
+                        userName: newName,
+                        memo: newMemo,
+                        updatedAt: serverTimestamp()
+                    });
+                    this.closeEditModal();
+                    this.showToast('記録を更新しました！', 'success');
+                } catch (error) {
+                    console.error("Update error:", error);
+                    this.showToast('更新に失敗しました。権限を確認してください。', 'error');
+                }
+            }
+
+            // 削除確認モーダルを開く
+            openDeleteModal(docId) {
+                document.getElementById('delete-doc-id').value = docId;
+                document.getElementById('delete-modal').classList.remove('hidden');
+            }
+
+            // 削除確認モーダルを閉じる
+            closeDeleteModal() {
+                document.getElementById('delete-modal').classList.add('hidden');
+            }
+
+            // Firestoreから記録を削除 (Delete)
+            async confirmDeleteRecord() {
+                if (!this.currentUser) return;
+                const docId = document.getElementById('delete-doc-id').value;
+
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'quiz_scores', docId);
+                    await deleteDoc(docRef);
+                    this.closeDeleteModal();
+                    this.showToast('記録を削除しました', 'info');
+                } catch (error) {
+                    console.error("Delete error:", error);
+                    this.showToast('削除に失敗しました。権限を確認してください。', 'error');
+                }
+            }
+
+            // 画面切り替え
+            showScreen(screenName) {
+                ['home', 'quiz', 'result'].forEach(name => {
+                    document.getElementById(`screen-${name}`).classList.add('hidden');
+                });
+                document.getElementById(`screen-${screenName}`).classList.remove('hidden');
+            }
+
+            // クイズ開始
+            startQuiz() {
+                // 問題をシャッフルして5問抽出
+                const shuffled = [...QUIZ_BANK].sort(() => Math.random() - 0.5);
+                this.questions = shuffled.slice(0, 5);
+                this.currentIndex = 0;
+                this.score = 0;
+                this.correctCount = 0;
+                
+                this.showScreen('quiz');
+                this.renderQuestion();
+            }
+
+            // 問題の描画
+            renderQuestion() {
+                this.isAnswered = false;
+                const q = this.questions[this.currentIndex];
+                const total = this.questions.length;
+
+                document.getElementById('q-current').textContent = this.currentIndex + 1;
+                document.getElementById('q-total').textContent = total;
+                document.getElementById('q-category').textContent = q.category;
+                document.getElementById('q-text').textContent = q.question;
+                
+                // プログレスバー更新
+                const progress = ((this.currentIndex) / total) * 100;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+
+                // 解説と次へボタンを隠す
+                document.getElementById('explanation-box').classList.add('hidden');
+                const nextBtn = document.getElementById('btn-next-q');
+                nextBtn.classList.add('hidden');
+                nextBtn.querySelector('span').textContent = (this.currentIndex === total - 1) ? '結果を見る' : '次の問題へ';
+
+                // 選択肢の生成
+                const container = document.getElementById('options-container');
+                const labels = ['A', 'B', 'C', 'D'];
+                
+                container.innerHTML = q.options.map((opt, idx) => `
+                    <button onclick="app.selectAnswer(${idx})" id="opt-btn-${idx}" class="option-btn w-full text-left p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-400 flex items-center gap-3.5 group">
+                        <span class="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-emerald-100 text-slate-600 group-hover:text-emerald-700 font-bold flex items-center justify-center shrink-0 transition">
+                            ${labels[idx]}
+                        </span>
+                        <span class="font-medium text-slate-800 text-sm sm:text-base">${this.escapeHTML(opt)}</span>
+                    </button>
+                `).join('');
+            }
+
+            // 回答選択時の処理
+            selectAnswer(selectedIndex) {
+                if (this.isAnswered) return;
+                this.isAnswered = true;
+
+                const q = this.questions[this.currentIndex];
+                const isCorrect = selectedIndex === q.answer;
+
+                if (isCorrect) {
+                    this.score += 20;
+                    this.correctCount++;
+                }
+
+                // 全ボタンを無効化し、正解・不正解のスタイルを適用
+                q.options.forEach((_, idx) => {
+                    const btn = document.getElementById(`opt-btn-${idx}`);
+                    btn.disabled = true;
+                    btn.classList.remove('hover:border-emerald-400');
+
+                    if (idx === q.answer) {
+                        btn.classList.remove('border-slate-200', 'bg-white');
+                        btn.classList.add('border-emerald-500', 'bg-emerald-50');
+                        btn.querySelector('span:first-child').classList.add('bg-emerald-500', 'text-white');
+                    } else if (idx === selectedIndex && !isCorrect) {
+                        btn.classList.remove('border-slate-200', 'bg-white');
+                        btn.classList.add('border-rose-500', 'bg-rose-50');
+                        btn.querySelector('span:first-child').classList.add('bg-rose-500', 'text-white');
+                    } else {
+                        btn.classList.add('opacity-50');
+                    }
+                });
+
+                // プログレスバーを進める
+                const progress = ((this.currentIndex + 1) / this.questions.length) * 100;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+
+                // 解説表示
+                const expBox = document.getElementById('explanation-box');
+                const badge = document.getElementById('result-badge');
+                expBox.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'bg-rose-50', 'border-rose-200');
+
+                if (isCorrect) {
+                    expBox.classList.add('bg-emerald-50/80', 'border-emerald-200');
+                    badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i> <span class="text-emerald-800">正解！素晴らしい！</span>`;
+                } else {
+                    expBox.classList.add('bg-rose-50/80', 'border-rose-200');
+                    badge.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-600"></i> <span class="text-rose-800">残念！不正解...</span>`;
+                }
+
+                document.getElementById('explanation-text').textContent = q.explanation;
+                document.getElementById('btn-next-q').classList.remove('hidden');
+            }
+
+            // 次の問題または結果画面へ
+            nextQuestion() {
+                this.currentIndex++;
+                if (this.currentIndex < this.questions.length) {
+                    this.renderQuestion();
+                } else {
+                    this.finishQuiz();
+                }
+            }
+
+            // クイズ終了・結果表示・Firestore保存
+            async finishQuiz() {
+                this.showScreen('result');
+
+                document.getElementById('final-score').textContent = this.score;
+                document.getElementById('correct-count').textContent = this.correctCount;
+                document.getElementById('total-count').textContent = this.questions.length;
+
+                // 称号の判定
+                let title = "家庭菜園ビギナー";
+                if (this.score === 100) title = "伝説のアグリ・マスター👑";
+                else if (this.score >= 80) title = "熟練のベテラン農家🌾";
+                else if (this.score >= 60) title = "一人前の若手ファーマー🚜";
+                else if (this.score >= 40) title = "見習いファーマー🌱";
+
+                document.getElementById('result-rank-title').textContent = title;
+
+                // スコア保存処理
+                const statusEl = document.getElementById('score-save-status');
+                
+                if (this.currentUser) {
+                    statusEl.innerHTML = `<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-1"></i>クラウドにスコアを保存中...</span>`;
+                    try {
+                        // Rule 1: 厳密なパスに保存
+                        const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'quiz_scores');
+                        await addDoc(scoresRef, {
+                            uid: this.currentUser.uid,
+                            userName: this.currentUser.displayName || 'ゲストファーマー',
+                            photoURL: this.currentUser.photoURL || '',
+                            score: this.score,
+                            title: title,
+                            memo: '',
+                            createdAt: serverTimestamp()
+                        });
+                        statusEl.innerHTML = `
+                            <div class="text-emerald-600 font-bold mb-1">
+                                <i class="fa-solid fa-cloud-arrow-up mr-1"></i>クラウドにスコアを保存しました！
+                            </div>
+                            <p class="text-xs text-slate-500">トップ画面の「マイ記録」から学習メモの追記や削除ができます。</p>
+                        `;
+                    } catch (error) {
+                        console.error("Save score error:", error);
+                        statusEl.innerHTML = `<span class="text-rose-500">スコアの保存に失敗しました（Firestoreのセキュリティルールを確認してください）</span>`;
+                    }
+                } else {
+                    statusEl.innerHTML = `
+                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl inline-block">
+                            <p class="text-amber-800 text-xs mb-2">ログインするとスコアが全国ランキングに登録されます！</p>
+                            <button onclick="app.loginWithGoogle()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-1.5 px-3 rounded-lg text-xs inline-flex items-center gap-1.5 shadow-sm">
+                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-3.5 h-3.5">
+                                <span>Googleでログインして保存</span>
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+
+            // XSS対策エスケープ
+            escapeHTML(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+        }
+
+        // グローバルにインスタンスを公開
+        window.app = new AgriQuizApp();
+    </script>
+</body>
+</html>
